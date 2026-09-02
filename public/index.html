@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101210" />
+    <meta name="description" content="Veltron IA, asistente local con memoria y conexión opcional a modelos generativos." />
+    <title>Veltron IA</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" type="module"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="Conversaciones">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true">V</div>
+          <div>
+            <strong>Veltron IA</strong>
+            <span id="mode-label">Comprobando motor</span>
+          </div>
+        </div>
+
+        <button class="new-chat" id="new-chat" type="button">Nueva conversación</button>
+
+        <nav class="conversation-list" id="conversation-list" aria-label="Historial">
+          <div class="list-skeleton" aria-label="Cargando conversaciones">
+            <span></span><span></span><span></span>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <p>Los chats se guardan solo en este equipo.</p>
+        </div>
+      </aside>
+
+      <main class="chat-panel">
+        <header class="chat-header">
+          <button class="mobile-menu" id="mobile-menu" type="button" aria-label="Abrir conversaciones">Historial</button>
+          <div class="chat-title-wrap">
+            <h1 id="chat-title">Nueva conversación</h1>
+            <span id="connection-status">Preparando chat</span>
+          </div>
+          <div class="header-actions">
+            <button id="export-chat" type="button">Exportar</button>
+            <button class="danger-action" id="delete-chat" type="button">Borrar</button>
+          </div>
+        </header>
+
+        <section class="messages" id="messages" aria-live="polite" aria-label="Mensajes">
+          <div class="empty-state" id="empty-state">
+            <div class="empty-mark" aria-hidden="true">V</div>
+            <h2>¿Qué quieres resolver?</h2>
+            <p>Pregunta, calcula o configura un modelo generativo para conversaciones más avanzadas.</p>
+            <div class="suggestions" aria-label="Sugerencias">
+              <button type="button">¿Qué puedes hacer?</button>
+              <button type="button">Me llamo Carlos</button>
+              <button type="button">Calcula (24 + 6) / 3</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="composer-wrap">
+          <form class="composer" id="composer">
+            <label for="message-input">Mensaje</label>
+            <textarea id="message-input" rows="1" maxlength="8000" placeholder="Escribe tu mensaje" required></textarea>
+            <button id="send-button" type="submit">Enviar</button>
+          </form>
+          <p class="composer-note" id="composer-note">Enter para enviar. Shift + Enter para una nueva línea.</p>
+        </div>
+      </main>
+    </div>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
+  </body>
+</html>

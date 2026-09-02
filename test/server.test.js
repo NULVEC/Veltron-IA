@@ -1,0 +1,92 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { createApp } from "../src/server.js";
+
+const offlineConfig = {
+  host: "127.0.0.1",
+  port: 0,
+  provider: {
+    enabled: false,
+    baseUrl: "",
+    apiKey: "",
+    model: "",
+    systemPrompt: "Prueba",
+    timeoutMs: 1_000,
+  },
+};
+
+async function withServer(run) {
+  const dataDirectory = await mkdtemp(join(tmpdir(), "veltron-ia-test-"));
+  const server = createApp({ config: offlineConfig, dataDirectory });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  try {
+    await run(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await rm(dataDirectory, { recursive: true, force: true });
+  }
+}
+
+async function request(baseUrl, path, options) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...options,
+    headers: { "content-type": "application/json", ...(options?.headers || {}) },
+  });
+  return { response, payload: await response.json() };
+}
+
+test("expone el estado offline sin filtrar secretos", async () => {
+  await withServer(async (baseUrl) => {
+    const { response, payload } = await request(baseUrl, "/api/health");
+    assert.equal(response.status, 200);
+    assert.deepEqual(payload, { ok: true, mode: "offline", model: null });
+    assert.equal(JSON.stringify(payload).includes("apiKey"), false);
+  });
+});
+
+test("crea, conversa, recupera y elimina una conversación", async () => {
+  await withServer(async (baseUrl) => {
+    const created = await request(baseUrl, "/api/conversations", {
+      method: "POST",
+      body: "{}",
+    });
+    assert.equal(created.response.status, 201);
+    const id = created.payload.conversation.id;
+
+    const chat = await request(baseUrl, "/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ conversationId: id, message: "Hola" }),
+    });
+    assert.equal(chat.response.status, 200);
+    assert.equal(chat.payload.mode, "offline");
+    assert.equal(chat.payload.conversation.messages.length, 2);
+
+    const fetched = await request(baseUrl, `/api/conversations/${id}`);
+    assert.equal(fetched.payload.conversation.messages[0].content, "Hola");
+
+    const deleted = await request(baseUrl, `/api/conversations/${id}`, { method: "DELETE" });
+    assert.deepEqual(deleted.payload, { deleted: true });
+
+    const missing = await request(baseUrl, `/api/conversations/${id}`);
+    assert.equal(missing.response.status, 404);
+  });
+});
+
+test("rechaza mensajes vacíos y sirve la interfaz con cabeceras seguras", async () => {
+  await withServer(async (baseUrl) => {
+    const invalid = await request(baseUrl, "/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ conversationId: "x", message: "   " }),
+    });
+    assert.equal(invalid.response.status, 400);
+
+    const page = await fetch(baseUrl);
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get("content-security-policy"), /default-src 'self'/);
+    assert.match(await page.text(), /Veltron IA/);
+  });
+});
