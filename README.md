@@ -4,6 +4,12 @@ Asistente web local con conversaciones persistentes, archivos de conocimiento,
 voz, memoria y conexión opcional a cualquier API compatible con OpenAI. Sin un
 proveedor configurado utiliza un motor offline de intenciones y aritmética.
 
+**Versión web:** [nulvec.github.io/Veltron-IA](https://nulvec.github.io/Veltron-IA/)
+
+En GitHub Pages funciona enteramente en el navegador y guarda los datos en
+`localStorage`. La ejecución local con Node habilita el servidor, almacenamiento
+en archivos y la conexión opcional con modelos compatibles con OpenAI.
+
 ## Funciones
 
 - Respuestas progresivas mediante streaming.

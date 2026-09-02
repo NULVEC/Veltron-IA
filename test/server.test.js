@@ -43,7 +43,7 @@ test("expone el estado offline sin filtrar secretos", async () => {
   await withServer(async (baseUrl) => {
     const { response, payload } = await request(baseUrl, "/api/health");
     assert.equal(response.status, 200);
-    assert.deepEqual(payload, { ok: true, version: "1.2.0", mode: "offline", model: null });
+    assert.deepEqual(payload, { ok: true, version: "1.2.1", mode: "offline", model: null });
     assert.equal(JSON.stringify(payload).includes("apiKey"), false);
   });
 });

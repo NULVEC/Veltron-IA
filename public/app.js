@@ -1,3 +1,7 @@
+import { isStaticDeployment, staticFetch } from "./static-api.js";
+
+const request = isStaticDeployment() ? staticFetch : window.fetch.bind(window);
+
 const state = {
   conversations: [],
   activeConversation: null,
@@ -47,7 +51,7 @@ const elements = {
 const THEMES = ["system", "light", "dark"];
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await request(path, {
     ...options,
     headers: { "content-type": "application/json", ...(options.headers || {}) },
   });
@@ -408,7 +412,7 @@ async function sendMessage(message, regenerate = false) {
   let completed = false;
   let warning = null;
   try {
-    const response = await fetch("/api/chat/stream", {
+    const response = await request("/api/chat/stream", {
       method: "POST",
       headers: { "content-type": "application/json" },
       signal: state.abortController.signal,
@@ -661,5 +665,5 @@ async function initialize() {
 initialize();
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("/service-worker.js").catch(() => {}));
+  window.addEventListener("load", () => navigator.serviceWorker.register(new URL("./service-worker.js", import.meta.url)).catch(() => {}));
 }

@@ -1,5 +1,5 @@
-const CACHE = "veltron-ia-v1.2";
-const ASSETS = ["/", "/styles.css", "/app.js", "/manifest.webmanifest", "/icon.svg"];
+const CACHE = "veltron-ia-v1.2.1-pages";
+const ASSETS = ["./", "./styles.css", "./app.js", "./static-api.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
@@ -20,5 +20,5 @@ self.addEventListener("fetch", (event) => {
       caches.open(CACHE).then((cache) => cache.put(event.request, copy));
       return response;
     })
-    .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/"))));
+    .catch(() => caches.match(event.request).then((cached) => cached || caches.match("./"))));
 });

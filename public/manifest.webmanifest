@@ -2,13 +2,13 @@
   "name": "Veltron IA",
   "short_name": "Veltron",
   "description": "Asistente web local con memoria, archivos y voz.",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#101210",
   "theme_color": "#176b45",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "./icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
