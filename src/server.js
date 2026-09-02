@@ -9,6 +9,8 @@ import { LlmClient } from "./llm-client.js";
 import { MemoryStore } from "./memory-store.js";
 import { ConversationStore } from "./conversation-store.js";
 import { AssistantService } from "./assistant-service.js";
+import { FactoryProjectStore } from "./factory/project-store.js";
+import { FactoryOrchestrator } from "./factory/orchestrator.js";
 
 const PUBLIC_DIR = fileURLToPath(new URL("../public/", import.meta.url));
 const MIME_TYPES = {
@@ -47,6 +49,16 @@ function serializeResult(result) {
   return { ...result, conversation: serializeConversation(result.conversation) };
 }
 
+function serializeFactoryProject(project) {
+  if (!project) return project;
+  const { dataset, ...metadata } = project;
+  return {
+    ...metadata,
+    datasetSize: dataset.length,
+    models: project.models.map(({ artifact, ...model }) => model),
+  };
+}
+
 async function readJson(request, maxLength = 1_000_000) {
   let body = "";
   for await (const chunk of request) {
@@ -69,6 +81,10 @@ export function createApp({ config = loadConfig(), dataDirectory } = {}) {
   const conversationStore = new ConversationStore(
     dataDirectory ? join(dataDirectory, "conversations.json") : undefined,
   );
+  const factoryStore = new FactoryProjectStore(
+    dataDirectory ? join(dataDirectory, "factory-projects.json") : undefined,
+  );
+  const factory = new FactoryOrchestrator({ store: factoryStore });
   const service = new AssistantService({
     llmClient: new LlmClient(config.provider),
     memoryStore,
@@ -81,10 +97,79 @@ export function createApp({ config = loadConfig(), dataDirectory } = {}) {
       if (request.method === "GET" && url.pathname === "/api/health") {
         return json(response, 200, {
           ok: true,
-          version: "1.4.0",
+          version: "1.5.0",
           mode: config.provider.enabled ? "model" : "offline",
           model: config.provider.enabled ? config.provider.model : null,
         });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/projects") {
+        return json(response, 200, { projects: await factory.listProjects() });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/projects") {
+        try {
+          const project = await factory.createProject(await readJson(request, 5_000_000));
+          return json(response, 201, { project: serializeFactoryProject(project) });
+        } catch (error) {
+          return json(response, 400, { error: error.message });
+        }
+      }
+
+      const projectMatch = url.pathname.match(/^\/api\/projects\/([^/]+)(?:\/(run|stop|models|experiments))?$/);
+      if (projectMatch && request.method === "GET" && !projectMatch[2]) {
+        const project = await factory.getProject(projectMatch[1]);
+        return project
+          ? json(response, 200, { project: serializeFactoryProject(project) })
+          : json(response, 404, { error: "Proyecto no encontrado." });
+      }
+
+      if (projectMatch && request.method === "POST" && projectMatch[2] === "run") {
+        try {
+          const project = await factory.run(projectMatch[1]);
+          return project
+            ? json(response, 200, { project: serializeFactoryProject(project) })
+            : json(response, 404, { error: "Proyecto no encontrado." });
+        } catch (error) {
+          return json(response, 409, { error: error.message });
+        }
+      }
+
+      if (projectMatch && request.method === "POST" && projectMatch[2] === "stop") {
+        const project = await factory.stop(projectMatch[1]);
+        return project
+          ? json(response, 200, { project: serializeFactoryProject(project) })
+          : json(response, 404, { error: "Proyecto no encontrado." });
+      }
+
+      if (projectMatch && request.method === "GET" && projectMatch[2] === "models") {
+        const models = await factory.listModels(projectMatch[1]);
+        return models
+          ? json(response, 200, { models })
+          : json(response, 404, { error: "Proyecto no encontrado." });
+      }
+
+      if (projectMatch && request.method === "GET" && projectMatch[2] === "experiments") {
+        const project = await factory.getProject(projectMatch[1]);
+        return project
+          ? json(response, 200, { experiments: project.experiments })
+          : json(response, 404, { error: "Proyecto no encontrado." });
+      }
+
+      const modelMatch = url.pathname.match(/^\/api\/models\/([^/]+)$/);
+      if (modelMatch && request.method === "GET") {
+        const model = await factory.getModel(modelMatch[1]);
+        return model
+          ? json(response, 200, { model })
+          : json(response, 404, { error: "Modelo no encontrado." });
+      }
+
+      const experimentMatch = url.pathname.match(/^\/api\/experiments\/([^/]+)$/);
+      if (experimentMatch && request.method === "GET") {
+        const experiment = await factory.getExperiment(experimentMatch[1]);
+        return experiment
+          ? json(response, 200, { experiment })
+          : json(response, 404, { error: "Experimento no encontrado." });
       }
 
       if (request.method === "GET" && url.pathname === "/api/conversations") {

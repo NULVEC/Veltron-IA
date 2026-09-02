@@ -56,6 +56,7 @@
             <span id="connection-status">Preparando chat</span>
           </div>
           <div class="header-actions">
+            <button id="factory-button" type="button">Fábrica</button>
             <button id="knowledge-button" type="button">Archivos <span id="document-count">0</span></button>
             <button id="theme-toggle" type="button">Tema</button>
             <button id="export-chat" type="button">Exportar</button>
@@ -112,6 +113,32 @@
         <div class="dialog-actions">
           <button id="knowledge-close" type="button">Cerrar</button>
           <button class="dialog-primary" type="submit">Agregar</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="rename-dialog factory-dialog" id="factory-dialog">
+      <form id="factory-form">
+        <div class="factory-heading">
+          <div>
+            <span>AI FACTORY · MVP</span>
+            <h2>Crear una IA</h2>
+          </div>
+          <strong>MODO SUPERVISADO</strong>
+        </div>
+        <p>Entrena dos generaciones de un clasificador de texto, las evalúa y conserva la mejor. El dataset permanece en este dispositivo.</p>
+        <label for="factory-objective">Objetivo</label>
+        <input id="factory-objective" type="text" maxlength="500" placeholder="Clasificar opiniones positivas y negativas" required />
+        <div class="factory-grid">
+          <label>Modelos <input type="text" value="2" disabled /></label>
+          <label>Generaciones <input type="text" value="2" disabled /></label>
+          <label for="factory-accuracy">Accuracy objetivo <input id="factory-accuracy" type="number" min="0" max="100" value="80" required /></label>
+        </div>
+        <label for="factory-dataset">Dataset JSON: mínimo 3 ejemplos por clase</label>
+        <textarea id="factory-dataset" rows="10" spellcheck="false" required></textarea>
+        <div class="factory-output" id="factory-output" aria-live="polite"></div>
+        <div class="dialog-actions">
+          <button id="factory-close" type="button">Cerrar</button>
+          <button class="dialog-primary" id="factory-run" type="submit">Crear y entrenar</button>
         </div>
       </form>
     </dialog>

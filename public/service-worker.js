@@ -1,5 +1,5 @@
-const CACHE = "veltron-ia-v1.4-pages";
-const ASSETS = ["./", "./styles.css", "./app.js", "./static-api.js", "./manifest.webmanifest", "./icon.svg"];
+const CACHE = "veltron-ia-v1.5-pages";
+const ASSETS = ["./", "./styles.css", "./app.js", "./static-api.js", "./factory-core.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));

@@ -43,7 +43,7 @@ test("expone el estado offline sin filtrar secretos", async () => {
   await withServer(async (baseUrl) => {
     const { response, payload } = await request(baseUrl, "/api/health");
     assert.equal(response.status, 200);
-    assert.deepEqual(payload, { ok: true, version: "1.4.0", mode: "offline", model: null });
+    assert.deepEqual(payload, { ok: true, version: "1.5.0", mode: "offline", model: null });
     assert.equal(JSON.stringify(payload).includes("apiKey"), false);
   });
 });
@@ -162,5 +162,47 @@ test("rechaza mensajes vacíos y sirve la interfaz con cabeceras seguras", async
     assert.equal(page.status, 200);
     assert.match(page.headers.get("content-security-policy"), /default-src 'self'/);
     assert.match(await page.text(), /Veltron IA/);
+  });
+});
+
+test("crea, ejecuta y consulta un proyecto de la fábrica de IAs", async () => {
+  await withServer(async (baseUrl) => {
+    const dataset = [
+      { text: "excelente producto", label: "positivo" },
+      { text: "excelente servicio", label: "positivo" },
+      { text: "excelente compra", label: "positivo" },
+      { text: "producto muy malo", label: "negativo" },
+      { text: "servicio muy malo", label: "negativo" },
+      { text: "compra muy mala", label: "negativo" },
+    ];
+    const created = await request(baseUrl, "/api/projects", {
+      method: "POST",
+      body: JSON.stringify({
+        objective: "Clasificar opiniones",
+        dataset,
+        limits: { maxModels: 2, maxExperiments: 2, maxGenerations: 2 },
+      }),
+    });
+    assert.equal(created.response.status, 201);
+    assert.equal(created.payload.project.datasetSize, 6);
+    assert.equal("dataset" in created.payload.project, false);
+
+    const id = created.payload.project.id;
+    const run = await request(baseUrl, `/api/projects/${id}/run`, { method: "POST", body: "{}" });
+    assert.equal(run.response.status, 200);
+    assert.equal(run.payload.project.status, "completed");
+    assert.equal(run.payload.project.models.length, 2);
+    assert.equal("artifact" in run.payload.project.models[0], false);
+
+    const models = await request(baseUrl, `/api/projects/${id}/models`);
+    assert.equal(models.payload.models.length, 2);
+    const model = await request(baseUrl, `/api/models/${models.payload.models[0].id}`);
+    assert.equal(model.response.status, 200);
+    assert.equal(model.payload.model.projectId, id);
+
+    const experiments = await request(baseUrl, `/api/projects/${id}/experiments`);
+    assert.equal(experiments.payload.experiments.length, 2);
+    const experiment = await request(baseUrl, `/api/experiments/${experiments.payload.experiments[0].id}`);
+    assert.equal(experiment.payload.experiment.projectId, id);
   });
 });

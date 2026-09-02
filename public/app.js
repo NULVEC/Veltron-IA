@@ -30,6 +30,15 @@ const elements = {
   deleteChat: document.querySelector("#delete-chat"),
   exportChat: document.querySelector("#export-chat"),
   themeToggle: document.querySelector("#theme-toggle"),
+  factoryButton: document.querySelector("#factory-button"),
+  factoryDialog: document.querySelector("#factory-dialog"),
+  factoryForm: document.querySelector("#factory-form"),
+  factoryObjective: document.querySelector("#factory-objective"),
+  factoryAccuracy: document.querySelector("#factory-accuracy"),
+  factoryDataset: document.querySelector("#factory-dataset"),
+  factoryOutput: document.querySelector("#factory-output"),
+  factoryClose: document.querySelector("#factory-close"),
+  factoryRun: document.querySelector("#factory-run"),
   knowledgeButton: document.querySelector("#knowledge-button"),
   documentCount: document.querySelector("#document-count"),
   knowledgeDialog: document.querySelector("#knowledge-dialog"),
@@ -49,6 +58,14 @@ const elements = {
 };
 
 const THEMES = ["system", "light", "dark"];
+const FACTORY_SAMPLE = [
+  { text: "excelente producto", label: "positivo" },
+  { text: "excelente servicio", label: "positivo" },
+  { text: "excelente compra", label: "positivo" },
+  { text: "producto muy malo", label: "negativo" },
+  { text: "servicio muy malo", label: "negativo" },
+  { text: "compra muy mala", label: "negativo" },
+];
 
 async function api(path, options = {}) {
   const response = await request(path, {
@@ -357,6 +374,32 @@ function downloadJson(filename, payload) {
   URL.revokeObjectURL(link.href);
 }
 
+function renderFactoryResult(project) {
+  elements.factoryOutput.replaceChildren();
+  const best = project.models.find((model) => model.id === project.bestModelId);
+  const title = document.createElement("strong");
+  title.textContent = best ? `${best.name} seleccionada` : "Ejecución finalizada";
+  const metrics = document.createElement("div");
+  metrics.className = "factory-metrics";
+  const values = [
+    ["Estado", project.status],
+    ["Generación", String(project.generation)],
+    ["Modelos", String(project.models.length)],
+    ["Accuracy", best ? `${(best.metrics.accuracy * 100).toFixed(1)}%` : "—"],
+    ["F1 macro", best ? `${(best.metrics.macroF1 * 100).toFixed(1)}%` : "—"],
+  ];
+  for (const [label, value] of values) {
+    const item = document.createElement("span");
+    const caption = document.createElement("small");
+    caption.textContent = label;
+    item.append(caption, document.createTextNode(value));
+    metrics.append(item);
+  }
+  const idLine = document.createElement("code");
+  idLine.textContent = `Proyecto ${project.id}`;
+  elements.factoryOutput.append(title, metrics, idLine);
+}
+
 async function readStream(response, onEvent) {
   if (!response.ok) {
     const payload = await response.json();
@@ -550,6 +593,42 @@ elements.exportChat.addEventListener("click", () => {
 elements.themeToggle.addEventListener("click", () => {
   const current = localStorage.getItem("veltron-theme") || "system";
   applyTheme(THEMES[(THEMES.indexOf(current) + 1) % THEMES.length]);
+});
+
+elements.factoryButton.addEventListener("click", () => {
+  if (!elements.factoryDataset.value) elements.factoryDataset.value = JSON.stringify(FACTORY_SAMPLE, null, 2);
+  if (!elements.factoryObjective.value) elements.factoryObjective.value = "Clasificar opiniones positivas y negativas";
+  elements.factoryOutput.replaceChildren();
+  elements.factoryDialog.showModal();
+});
+
+elements.factoryClose.addEventListener("click", () => elements.factoryDialog.close());
+
+elements.factoryForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  elements.factoryRun.disabled = true;
+  elements.factoryRun.textContent = "Entrenando…";
+  elements.factoryOutput.textContent = "Validando datos y creando generaciones…";
+  try {
+    const dataset = JSON.parse(elements.factoryDataset.value);
+    const created = await api("/api/projects", {
+      method: "POST",
+      body: JSON.stringify({
+        objective: elements.factoryObjective.value,
+        autonomy: "supervised",
+        successCriteria: { accuracy: Number(elements.factoryAccuracy.value) / 100 },
+        limits: { maxModels: 2, maxExperiments: 2, maxGenerations: 2, maxTimeMs: 30_000 },
+        dataset,
+      }),
+    });
+    const completed = await api(`/api/projects/${created.project.id}/run`, { method: "POST", body: "{}" });
+    renderFactoryResult(completed.project);
+  } catch (error) {
+    elements.factoryOutput.textContent = `No se pudo completar: ${error.message}`;
+  } finally {
+    elements.factoryRun.disabled = false;
+    elements.factoryRun.textContent = "Crear y entrenar";
+  }
 });
 
 elements.knowledgeButton.addEventListener("click", () => {

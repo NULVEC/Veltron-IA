@@ -36,6 +36,7 @@ continúa con el motor offline.
 - IA online en GitHub Pages mediante Puter AI, con autorización individual y caída offline.
 - Contador de caracteres y atajo `Ctrl+K` para buscar chats.
 - Caída automática al motor offline cuando un proveedor no responde.
+- Núcleo inicial de AI Factory para entrenar, evaluar y comparar clasificadores de texto.
 
 ## Requisitos
 
@@ -98,6 +99,18 @@ En la terminal están disponibles `/help`, `/memory`, `/clear` y `/exit`.
 npm test
 ```
 
+## AI Factory experimental
+
+La ejecución local incluye una primera fábrica verificable de modelos para
+clasificación de texto. Recibe un objetivo y ejemplos etiquetados, crea dos
+generaciones, calcula accuracy y F1 macro, registra la relación padre-hijo y
+selecciona el mejor modelo respetando límites configurables. Consulta la
+[arquitectura de la Meta-IA](docs/META_AI_ARCHITECTURE.md) y su API.
+
+Esta fase no entrena modelos fundacionales, no ejecuta código generado y no usa
+GPU. Esas capacidades requieren el sandbox y el backend de trabajos de las fases
+siguientes.
+
 ## Arquitectura
 
 - `src/engine.js`: normalización, reconocimiento de intenciones y respuestas.
@@ -106,6 +119,7 @@ npm test
 - `src/knowledge.js`: recuperación local de fragmentos de documentos.
 - `src/llm-client.js`: cliente de modelos compatible con OpenAI.
 - `src/assistant-service.js`: orquestación, contexto y streaming.
+- `src/factory/`: orquestador, registro persistente y primera arquitectura entrenable.
 - `src/server.js`: servidor HTTP local y API.
 - `public/`: interfaz web responsive.
 - `src/cli.js`: interfaz alternativa de terminal.

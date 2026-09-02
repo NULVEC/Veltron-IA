@@ -1,3 +1,5 @@
+import { createBrowserFactoryProject, runBrowserFactoryProject } from "./factory-core.js";
+
 const STORAGE_KEY = "veltron-ia-static-v1";
 const PUTER_SCRIPT = "https://js.puter.com/v2/";
 const ONLINE_MODEL = "gpt-5-nano";
@@ -8,7 +10,7 @@ function readData() {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (Array.isArray(parsed?.conversations)) return parsed;
   } catch {}
-  return { conversations: [] };
+  return { conversations: [], projects: [] };
 }
 
 function writeData(data) {
@@ -37,6 +39,25 @@ function listConversations(data) {
     documentCount: documents.length,
     preview: messages.at(-1)?.content?.slice(0, 90) || "Conversación vacía",
   })).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt));
+}
+
+function publicFactoryProject(project) {
+  const { dataset, ...metadata } = project;
+  return {
+    ...metadata,
+    datasetSize: dataset.length,
+    models: project.models.map(({ artifact, ...model }) => model),
+  };
+}
+
+function listFactoryProjects(data) {
+  return (data.projects || []).map(({ dataset, models, experiments, auditLog, ...project }) => ({
+    ...project,
+    datasetSize: dataset.length,
+    modelCount: models.length,
+    experimentCount: experiments.length,
+    auditEvents: auditLog.length,
+  })).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 function tokenize(value) {
@@ -189,9 +210,71 @@ export async function staticFetch(path, options = {}) {
   const pathname = new URL(path, location.origin).pathname.replace(/^.*?\/api\//, "/api/");
   const body = bodyOf(options);
   const data = readData();
+  data.projects ||= [];
 
   if (method === "GET" && pathname === "/api/health") {
-    return json({ ok: true, version: "1.4.0", mode: "online", model: "Puter AI", deployment: "static" });
+    return json({ ok: true, version: "1.5.0", mode: "online", model: "Puter AI", deployment: "static" });
+  }
+  if (method === "GET" && pathname === "/api/projects") return json({ projects: listFactoryProjects(data) });
+  if (method === "POST" && pathname === "/api/projects") {
+    try {
+      const project = createBrowserFactoryProject(body);
+      data.projects.push(project);
+      writeData(data);
+      return json({ project: publicFactoryProject(project) }, 201);
+    } catch (error) {
+      return json({ error: error.message }, 400);
+    }
+  }
+
+  const projectMatch = pathname.match(/^\/api\/projects\/([^/]+)(?:\/(run|stop|models|experiments))?$/);
+  const factoryProject = projectMatch && data.projects.find((project) => project.id === projectMatch[1]);
+  if (projectMatch && method === "GET" && !projectMatch[2] && factoryProject) {
+    return json({ project: publicFactoryProject(factoryProject) });
+  }
+  if (projectMatch && method === "POST" && projectMatch[2] === "run" && factoryProject) {
+    try {
+      runBrowserFactoryProject(factoryProject);
+      writeData(data);
+      return json({ project: publicFactoryProject(factoryProject) });
+    } catch (error) {
+      return json({ error: error.message }, 409);
+    }
+  }
+  if (projectMatch && method === "POST" && projectMatch[2] === "stop" && factoryProject) {
+    factoryProject.status = "stopped";
+    factoryProject.updatedAt = now();
+    factoryProject.auditLog.push({ id: id(), type: "project.stop_requested", at: factoryProject.updatedAt, details: {} });
+    writeData(data);
+    return json({ project: publicFactoryProject(factoryProject) });
+  }
+  if (projectMatch && method === "GET" && projectMatch[2] === "models" && factoryProject) {
+    return json({ models: publicFactoryProject(factoryProject).models });
+  }
+  if (projectMatch && method === "GET" && projectMatch[2] === "experiments" && factoryProject) {
+    return json({ experiments: factoryProject.experiments });
+  }
+  if (projectMatch && !factoryProject) return json({ error: "Proyecto no encontrado." }, 404);
+
+  const modelMatch = pathname.match(/^\/api\/models\/([^/]+)$/);
+  if (modelMatch && method === "GET") {
+    for (const project of data.projects) {
+      const model = project.models.find((item) => item.id === modelMatch[1]);
+      if (model) {
+        const { artifact, ...metadata } = model;
+        return json({ model: { ...metadata, projectId: project.id } });
+      }
+    }
+    return json({ error: "Modelo no encontrado." }, 404);
+  }
+
+  const experimentMatch = pathname.match(/^\/api\/experiments\/([^/]+)$/);
+  if (experimentMatch && method === "GET") {
+    for (const project of data.projects) {
+      const experiment = project.experiments.find((item) => item.id === experimentMatch[1]);
+      if (experiment) return json({ experiment: { ...experiment, projectId: project.id } });
+    }
+    return json({ error: "Experimento no encontrado." }, 404);
   }
   if (method === "GET" && pathname === "/api/conversations") return json({ conversations: listConversations(data) });
   if (method === "POST" && pathname === "/api/conversations") {

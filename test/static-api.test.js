@@ -21,7 +21,7 @@ test("expone Puter AI como motor online", async () => {
   const health = await (await staticFetch("/api/health")).json();
   assert.deepEqual(health, {
     ok: true,
-    version: "1.4.0",
+    version: "1.5.0",
     mode: "online",
     model: "Puter AI",
     deployment: "static",
@@ -66,4 +66,33 @@ test("transmite una respuesta online y conserva la conversación", async () => {
   assert.equal(events.at(-1).mode, "online");
   assert.equal(events.at(-1).conversation.messages.at(-1).mode, "model");
   delete globalThis.puter;
+});
+
+test("ejecuta la fábrica de IAs dentro del navegador", async () => {
+  values.clear();
+  const dataset = [
+    { text: "excelente producto", label: "positivo" },
+    { text: "excelente servicio", label: "positivo" },
+    { text: "excelente compra", label: "positivo" },
+    { text: "producto muy malo", label: "negativo" },
+    { text: "servicio muy malo", label: "negativo" },
+    { text: "compra muy mala", label: "negativo" },
+  ];
+  const createdResponse = await staticFetch("/api/projects", {
+    method: "POST",
+    body: JSON.stringify({ objective: "Clasificar opiniones", dataset, successCriteria: { accuracy: 0.8 } }),
+  });
+  assert.equal(createdResponse.status, 201);
+  const created = (await createdResponse.json()).project;
+  assert.equal(created.datasetSize, 6);
+
+  const run = await staticFetch(`/api/projects/${created.id}/run`, { method: "POST", body: "{}" });
+  const completed = (await run.json()).project;
+  assert.equal(completed.status, "completed");
+  assert.equal(completed.models.length, 2);
+  assert.equal(completed.models[1].parentModelId, completed.models[0].id);
+  assert.ok(completed.bestModelId);
+
+  const projects = await (await staticFetch("/api/projects")).json();
+  assert.equal(projects.projects[0].experimentCount, 2);
 });
