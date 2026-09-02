@@ -427,7 +427,7 @@ async function sendMessage(message, regenerate = false) {
         state.activeConversation = event.conversation;
         warning = event.warning;
         completed = true;
-        elements.connection.textContent = event.mode === "model" ? "Modelo generativo activo" : "Motor offline activo";
+        elements.connection.textContent = ["model", "online"].includes(event.mode) ? "IA online activa" : "Motor offline activo";
       } else if (event.type === "error") {
         throw new Error(event.error);
       }
@@ -649,9 +649,9 @@ async function initialize() {
   applyTheme(localStorage.getItem("veltron-theme") || "dark");
   try {
     state.health = await api("/api/health");
-    const modelActive = state.health.mode === "model";
+    const modelActive = ["model", "online"].includes(state.health.mode);
     elements.modeLabel.textContent = modelActive ? state.health.model : "Motor offline";
-    elements.connection.textContent = modelActive ? "Modelo generativo activo" : "Motor offline activo";
+    elements.connection.textContent = state.health.mode === "online" ? "IA online activa" : modelActive ? "Modelo generativo activo" : "Motor offline activo";
     await refreshList();
     if (state.conversations[0]) await openConversation(state.conversations[0].id);
     else await newConversation();

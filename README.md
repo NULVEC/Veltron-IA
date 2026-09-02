@@ -10,6 +10,15 @@ En GitHub Pages funciona enteramente en el navegador y guarda los datos en
 `localStorage`. La ejecución local con Node habilita el servidor, almacenamiento
 en archivos y la conexión opcional con modelos compatibles con OpenAI.
 
+## Modo online en GitHub Pages
+
+La versión pública usa Puter AI con el modelo de pago por usuario. No contiene
+claves del desarrollador: la primera consulta puede solicitar autorización o
+inicio de sesión en Puter. El historial permanece en el navegador, pero los
+mensajes enviados y los fragmentos relevantes de archivos se transmiten a Puter
+para generar la respuesta. Si el servicio no está disponible, la conversación
+continúa con el motor offline.
+
 ## Funciones
 
 - Respuestas progresivas mediante streaming.
@@ -24,6 +33,7 @@ en archivos y la conexión opcional con modelos compatibles con OpenAI.
 - Tema del sistema, claro u oscuro.
 - Aplicación web instalable (PWA) con caché de la interfaz.
 - Interfaz VELTRON adaptable desde móviles compactos hasta monitores ultrawide.
+- IA online en GitHub Pages mediante Puter AI, con autorización individual y caída offline.
 - Contador de caracteres y atajo `Ctrl+K` para buscar chats.
 - Caída automática al motor offline cuando un proveedor no responde.
 

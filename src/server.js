@@ -81,7 +81,7 @@ export function createApp({ config = loadConfig(), dataDirectory } = {}) {
       if (request.method === "GET" && url.pathname === "/api/health") {
         return json(response, 200, {
           ok: true,
-          version: "1.3.0",
+          version: "1.4.0",
           mode: config.provider.enabled ? "model" : "offline",
           model: config.provider.enabled ? config.provider.model : null,
         });

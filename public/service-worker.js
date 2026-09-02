@@ -1,4 +1,4 @@
-const CACHE = "veltron-ia-v1.3-pages";
+const CACHE = "veltron-ia-v1.4-pages";
 const ASSETS = ["./", "./styles.css", "./app.js", "./static-api.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
