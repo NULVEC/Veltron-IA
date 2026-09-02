@@ -22,6 +22,11 @@
 
         <button class="new-chat" id="new-chat" type="button">Nueva conversación</button>
 
+        <div class="search-wrap">
+          <label for="conversation-search">Buscar conversaciones</label>
+          <input id="conversation-search" type="search" placeholder="Buscar chats" autocomplete="off" />
+        </div>
+
         <nav class="conversation-list" id="conversation-list" aria-label="Historial">
           <div class="list-skeleton" aria-label="Cargando conversaciones">
             <span></span><span></span><span></span>
@@ -37,10 +42,14 @@
         <header class="chat-header">
           <button class="mobile-menu" id="mobile-menu" type="button" aria-label="Abrir conversaciones">Historial</button>
           <div class="chat-title-wrap">
-            <h1 id="chat-title">Nueva conversación</h1>
+            <div class="title-line">
+              <h1 id="chat-title">Nueva conversación</h1>
+              <button id="rename-chat" type="button">Renombrar</button>
+            </div>
             <span id="connection-status">Preparando chat</span>
           </div>
           <div class="header-actions">
+            <button id="theme-toggle" type="button">Tema</button>
             <button id="export-chat" type="button">Exportar</button>
             <button class="danger-action" id="delete-chat" type="button">Borrar</button>
           </div>
@@ -65,10 +74,24 @@
             <textarea id="message-input" rows="1" maxlength="8000" placeholder="Escribe tu mensaje" required></textarea>
             <button id="send-button" type="submit">Enviar</button>
           </form>
-          <p class="composer-note" id="composer-note">Enter para enviar. Shift + Enter para una nueva línea.</p>
+          <div class="composer-meta">
+            <p class="composer-note" id="composer-note">Enter para enviar. Shift + Enter para una nueva línea.</p>
+            <span id="character-count">0 / 8000</span>
+          </div>
         </div>
       </main>
     </div>
+    <dialog class="rename-dialog" id="rename-dialog">
+      <form id="rename-form">
+        <h2>Renombrar conversación</h2>
+        <label for="rename-input">Nuevo título</label>
+        <input id="rename-input" type="text" maxlength="80" required />
+        <div class="dialog-actions">
+          <button id="rename-cancel" type="button">Cancelar</button>
+          <button class="dialog-primary" type="submit">Guardar</button>
+        </div>
+      </form>
+    </dialog>
     <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
   </body>
 </html>

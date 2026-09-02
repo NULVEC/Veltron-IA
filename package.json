@@ -1,7 +1,7 @@
 {
   "name": "veltron-ia",
-  "version": "1.0.0",
-  "description": "Chatbot local con intenciones, contexto y memoria persistente.",
+  "version": "1.1.0",
+  "description": "Asistente local con streaming, historial, memoria y modelos compatibles con OpenAI.",
   "type": "module",
   "bin": {
     "veltron-ia": "./src/cli.js",

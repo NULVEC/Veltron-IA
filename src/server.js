@@ -29,6 +29,10 @@ function json(response, status, payload) {
   response.end(JSON.stringify(payload));
 }
 
+function ndjson(response, payload) {
+  response.write(`${JSON.stringify(payload)}\n`);
+}
+
 async function readJson(request) {
   let body = "";
   for await (const chunk of request) {
@@ -89,6 +93,16 @@ export function createApp({ config = loadConfig(), dataDirectory } = {}) {
         return json(response, deleted ? 200 : 404, { deleted });
       }
 
+      if (conversationMatch && request.method === "PATCH") {
+        const body = await readJson(request);
+        const title = typeof body.title === "string" ? body.title.trim().slice(0, 80) : "";
+        if (!title) return json(response, 400, { error: "El título no puede estar vacío." });
+        const conversation = await conversationStore.rename(conversationMatch[1], title);
+        return conversation
+          ? json(response, 200, { conversation })
+          : json(response, 404, { error: "Conversación no encontrada." });
+      }
+
       if (request.method === "POST" && url.pathname === "/api/chat") {
         const body = await readJson(request);
         const content = validateMessage(body.message);
@@ -96,6 +110,40 @@ export function createApp({ config = loadConfig(), dataDirectory } = {}) {
           return json(response, 400, { error: "Mensaje o conversación inválidos." });
         }
         return json(response, 200, await service.respond(body.conversationId, content));
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/chat/stream") {
+        const body = await readJson(request);
+        const content = validateMessage(body.message);
+        if (!content || typeof body.conversationId !== "string") {
+          return json(response, 400, { error: "Mensaje o conversación inválidos." });
+        }
+        const controller = new AbortController();
+        request.on("aborted", () => controller.abort());
+        response.on("close", () => {
+          if (!response.writableEnded) controller.abort();
+        });
+        response.writeHead(200, {
+          "content-type": "application/x-ndjson; charset=utf-8",
+          "cache-control": "no-store",
+          connection: "keep-alive",
+          "x-content-type-options": "nosniff",
+        });
+        try {
+          const result = await service.respondStreaming(body.conversationId, content, {
+            signal: controller.signal,
+            onDelta: (delta) => ndjson(response, { type: "delta", delta }),
+          });
+          ndjson(response, {
+            type: "done",
+            conversation: result.conversation,
+            mode: result.mode,
+            warning: result.warning,
+          });
+        } catch (error) {
+          ndjson(response, { type: "error", error: error.message });
+        }
+        return response.end();
       }
 
       if (request.method !== "GET" && request.method !== "HEAD") {

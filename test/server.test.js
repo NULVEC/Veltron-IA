@@ -68,11 +68,39 @@ test("crea, conversa, recupera y elimina una conversación", async () => {
     const fetched = await request(baseUrl, `/api/conversations/${id}`);
     assert.equal(fetched.payload.conversation.messages[0].content, "Hola");
 
+    const renamed = await request(baseUrl, `/api/conversations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title: "Chat de prueba" }),
+    });
+    assert.equal(renamed.payload.conversation.title, "Chat de prueba");
+
     const deleted = await request(baseUrl, `/api/conversations/${id}`, { method: "DELETE" });
     assert.deepEqual(deleted.payload, { deleted: true });
 
     const missing = await request(baseUrl, `/api/conversations/${id}`);
     assert.equal(missing.response.status, 404);
+  });
+});
+
+test("transmite respuestas offline como NDJSON y persiste el resultado", async () => {
+  await withServer(async (baseUrl) => {
+    const created = await request(baseUrl, "/api/conversations", {
+      method: "POST",
+      body: "{}",
+    });
+    const id = created.payload.conversation.id;
+    const response = await fetch(`${baseUrl}/api/chat/stream`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ conversationId: id, message: "cuánto es 7 * 8" }),
+    });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type"), /application\/x-ndjson/);
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+    assert.equal(events[0].type, "delta");
+    assert.equal(events[0].delta, "El resultado es 56.");
+    assert.equal(events.at(-1).type, "done");
+    assert.equal(events.at(-1).conversation.messages.length, 2);
   });
 });
 

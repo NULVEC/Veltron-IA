@@ -4,6 +4,8 @@ import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { createReply } from "./engine.js";
 import { MemoryStore } from "./memory-store.js";
+import { loadConfig } from "./config.js";
+import { LlmClient } from "./llm-client.js";
 
 const HELP = `
 Comandos disponibles:
@@ -18,12 +20,16 @@ También puedes decir "me llamo Ana" o pedir "cuánto es 12 * 4".
 async function main() {
   const store = new MemoryStore();
   let memory = await store.load();
+  const config = loadConfig();
+  const llm = new LlmClient(config.provider);
+  const history = [];
   const chat = createInterface({ input, output });
 
   console.log("\n╭──────────────────────────────────╮");
   console.log("│        VELTRON IA · LOCAL         │");
   console.log("╰──────────────────────────────────╯");
-  console.log('Bot: ¡Hola! Escribe /help para ver lo que puedo hacer.\n');
+  console.log(`Bot: ¡Hola! Escribe /help para ver lo que puedo hacer.`);
+  console.log(`Motor: ${config.provider.enabled ? config.provider.model : "offline"}\n`);
 
   try {
     while (true) {
@@ -49,10 +55,23 @@ async function main() {
         continue;
       }
 
-      const response = createReply(message, memory);
-      memory = response.memory;
-      await store.save(memory);
-      console.log(`Bot: ${response.text}`);
+      let answer;
+      if (config.provider.enabled) {
+        try {
+          answer = await llm.complete([...history, { role: "user", content: message }]);
+        } catch (error) {
+          console.log(`Aviso: ${error.message} Se usará el motor offline.`);
+        }
+      }
+      if (!answer) {
+        const response = createReply(message, memory);
+        memory = response.memory;
+        await store.save(memory);
+        answer = response.text;
+      }
+      history.push({ role: "user", content: message }, { role: "assistant", content: answer });
+      if (history.length > 20) history.splice(0, history.length - 20);
+      console.log(`Bot: ${answer}`);
     }
   } finally {
     chat.close();

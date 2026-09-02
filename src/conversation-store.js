@@ -75,6 +75,16 @@ export class ConversationStore {
     return conversation;
   }
 
+  async rename(id, title) {
+    const data = await this.readData();
+    const conversation = data.conversations.find((item) => item.id === id);
+    if (!conversation) return null;
+    conversation.title = title;
+    conversation.updatedAt = new Date().toISOString();
+    await this.writeData(data);
+    return conversation;
+  }
+
   async delete(id) {
     const data = await this.readData();
     const originalLength = data.conversations.length;
