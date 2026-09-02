@@ -43,7 +43,7 @@ test("expone el estado offline sin filtrar secretos", async () => {
   await withServer(async (baseUrl) => {
     const { response, payload } = await request(baseUrl, "/api/health");
     assert.equal(response.status, 200);
-    assert.deepEqual(payload, { ok: true, mode: "offline", model: null });
+    assert.deepEqual(payload, { ok: true, version: "1.2.0", mode: "offline", model: null });
     assert.equal(JSON.stringify(payload).includes("apiKey"), false);
   });
 });
@@ -101,6 +101,52 @@ test("transmite respuestas offline como NDJSON y persiste el resultado", async (
     assert.equal(events[0].delta, "El resultado es 56.");
     assert.equal(events.at(-1).type, "done");
     assert.equal(events.at(-1).conversation.messages.length, 2);
+  });
+});
+
+test("fija chats, consulta archivos, regenera y exporta respaldos", async () => {
+  await withServer(async (baseUrl) => {
+    const created = await request(baseUrl, "/api/conversations", { method: "POST", body: "{}" });
+    const id = created.payload.conversation.id;
+
+    const pinned = await request(baseUrl, `/api/conversations/${id}/pin`, {
+      method: "PATCH",
+      body: JSON.stringify({ pinned: true }),
+    });
+    assert.equal(pinned.payload.conversation.pinned, true);
+
+    const uploaded = await request(baseUrl, `/api/conversations/${id}/documents`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: "proyecto.txt",
+        type: "text/plain",
+        content: "El código de lanzamiento del proyecto es VELTRON-42 y la fecha objetivo es noviembre.",
+      }),
+    });
+    assert.equal(uploaded.response.status, 201);
+    assert.equal(uploaded.payload.conversation.documents.length, 1);
+    assert.equal("content" in uploaded.payload.conversation.documents[0], false);
+
+    const streamed = await fetch(`${baseUrl}/api/chat/stream`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ conversationId: id, message: "¿Cuál es el código de lanzamiento?" }),
+    });
+    const events = (await streamed.text()).trim().split("\n").map((line) => JSON.parse(line));
+    assert.match(events[0].delta, /VELTRON-42/);
+    assert.deepEqual(events.at(-1).conversation.messages[1].sources, ["proyecto.txt"]);
+
+    const regenerated = await fetch(`${baseUrl}/api/chat/stream`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ conversationId: id, regenerate: true }),
+    });
+    const regeneratedEvents = (await regenerated.text()).trim().split("\n").map((line) => JSON.parse(line));
+    assert.equal(regeneratedEvents.at(-1).conversation.messages.length, 2);
+
+    const backup = await request(baseUrl, "/api/backup");
+    assert.equal(backup.payload.format, "veltron-ia-backup");
+    assert.equal(backup.payload.conversations.length, 1);
   });
 });
 

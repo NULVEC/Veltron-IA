@@ -131,6 +131,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible {
 .search-wrap input::placeholder { color: var(--muted); opacity: 1; }
 
 .conversation-list { flex: 1; overflow-y: auto; margin: 20px 0; }
+.conversation-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px; align-items: stretch; }
 
 .conversation-item {
   width: 100%;
@@ -146,12 +147,16 @@ button:focus-visible, textarea:focus-visible, input:focus-visible {
 .conversation-item strong, .conversation-item span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conversation-item strong { font-size: 14px; }
 .conversation-item span { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.pin-button { width: 34px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--muted); font-size: 11px; }
+.pin-button:hover, .pin-button.active { border-color: var(--line); background: var(--surface); color: var(--accent-strong); }
 
 .list-skeleton { display: grid; gap: 10px; }
 .list-skeleton span { height: 52px; border-radius: var(--radius); background: var(--surface); }
 
 .sidebar-footer { padding: 12px 8px 0; border-top: 1px solid var(--line); }
 .sidebar-footer p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.data-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.data-actions button { min-height: 34px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); font-size: 11px; }
 
 .chat-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; height: 100dvh; }
 
@@ -209,6 +214,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible {
 .message-actions { display: flex; gap: 8px; margin-top: 8px; }
 .message-actions button { padding: 3px 8px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); font-size: 11px; }
 .message-actions button:hover { border-color: var(--accent); color: var(--text); }
+.message-sources { margin-top: 10px; color: var(--muted); font-size: 11px; }
 
 .thinking .message-content { display: flex; gap: 6px; padding-top: 8px; }
 .thinking i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); opacity: .35; }
@@ -216,7 +222,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible {
 .composer-wrap { padding: 14px max(24px, calc((100% - 820px) / 2)) 18px; background: linear-gradient(transparent, var(--bg) 20%); }
 .composer {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto 1fr auto;
   gap: 12px;
   align-items: end;
   padding: 12px;
@@ -232,6 +238,8 @@ button:focus-visible, textarea:focus-visible, input:focus-visible {
 .composer button:hover { background: var(--accent-strong); }
 .composer button:disabled { cursor: not-allowed; opacity: .55; }
 .composer button.stop { border-color: var(--danger); background: var(--danger); color: var(--bg); }
+.composer .voice-button { min-width: auto; padding: 0 10px; border-color: var(--line); background: var(--surface); color: var(--text); font-size: 12px; }
+.composer .voice-button:hover, .composer .voice-button.listening { border-color: var(--accent); background: var(--accent-soft); }
 .composer-meta { display: flex; justify-content: center; gap: 16px; margin: 8px 4px 0; color: var(--muted); font-size: 11px; }
 .composer-note { margin: 0; text-align: center; }
 .composer-meta span { font-variant-numeric: tabular-nums; }
@@ -245,6 +253,14 @@ button:focus-visible, textarea:focus-visible, input:focus-visible {
 .rename-dialog h2 { margin: 0 0 4px; font-size: 20px; }
 .rename-dialog label { font-size: 13px; font-weight: 700; }
 .rename-dialog input { min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); }
+.knowledge-dialog { width: min(560px, calc(100% - 32px)); }
+.knowledge-dialog form > p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.knowledge-dialog input[type="file"] { padding: 10px; }
+.document-list { display: grid; gap: 7px; max-height: 240px; overflow-y: auto; }
+.document-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.document-row strong, .document-row span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-row span { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.document-row button { min-height: 32px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--danger); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .dialog-actions button { min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .dialog-actions .dialog-primary { border-color: var(--accent); background: var(--accent); color: #f7fff9; }
@@ -266,7 +282,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible {
   .sidebar-backdrop:not([hidden]) { display: block; z-index: 1; }
   .mobile-menu { display: block; }
   .chat-header { padding: 10px 14px; }
-  .header-actions button:not(.danger-action) { display: none; }
+  .header-actions #theme-toggle, .header-actions #export-chat { display: none; }
   .messages { padding: 26px 16px; }
   .composer-wrap { padding: 12px 12px 14px; }
   .suggestions { grid-template-columns: 1fr; }

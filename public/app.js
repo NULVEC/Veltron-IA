@@ -26,6 +26,17 @@ const elements = {
   deleteChat: document.querySelector("#delete-chat"),
   exportChat: document.querySelector("#export-chat"),
   themeToggle: document.querySelector("#theme-toggle"),
+  knowledgeButton: document.querySelector("#knowledge-button"),
+  documentCount: document.querySelector("#document-count"),
+  knowledgeDialog: document.querySelector("#knowledge-dialog"),
+  knowledgeForm: document.querySelector("#knowledge-form"),
+  knowledgeInput: document.querySelector("#knowledge-input"),
+  knowledgeClose: document.querySelector("#knowledge-close"),
+  documentList: document.querySelector("#document-list"),
+  backupExport: document.querySelector("#backup-export"),
+  backupImportButton: document.querySelector("#backup-import-button"),
+  backupImport: document.querySelector("#backup-import"),
+  voiceInput: document.querySelector("#voice-input"),
   search: document.querySelector("#conversation-search"),
   characterCount: document.querySelector("#character-count"),
   sidebar: document.querySelector("#sidebar"),
@@ -133,6 +144,8 @@ function renderList() {
   }
 
   for (const conversation of conversations) {
+    const row = document.createElement("div");
+    row.className = "conversation-row";
     const button = document.createElement("button");
     button.type = "button";
     button.className = `conversation-item${state.activeConversation?.id === conversation.id ? " active" : ""}`;
@@ -142,7 +155,14 @@ function renderList() {
     preview.textContent = conversation.preview;
     button.append(title, preview);
     button.addEventListener("click", () => openConversation(conversation.id));
-    elements.list.append(button);
+    const pin = document.createElement("button");
+    pin.type = "button";
+    pin.className = `pin-button${conversation.pinned ? " active" : ""}`;
+    pin.textContent = conversation.pinned ? "Fijo" : "Fijar";
+    pin.setAttribute("aria-label", `${conversation.pinned ? "Desfijar" : "Fijar"} ${conversation.title}`);
+    pin.addEventListener("click", () => togglePinned(conversation));
+    row.append(button, pin);
+    elements.list.append(row);
   }
 }
 
@@ -158,7 +178,7 @@ function copyButton(message) {
   return button;
 }
 
-function messageElement(message) {
+function messageElement(message, { isLast = false } = {}) {
   const article = document.createElement("article");
   article.className = `message ${message.role}`;
   const avatar = document.createElement("div");
@@ -178,7 +198,28 @@ function messageElement(message) {
   const actions = document.createElement("div");
   actions.className = "message-actions";
   actions.append(copyButton(message));
-  body.append(meta, content, actions);
+  if (message.role === "assistant" && "speechSynthesis" in window) {
+    const speak = document.createElement("button");
+    speak.type = "button";
+    speak.textContent = "Escuchar";
+    speak.addEventListener("click", () => speakMessage(message.content, speak));
+    actions.append(speak);
+  }
+  if (message.role === "assistant" && isLast) {
+    const regenerate = document.createElement("button");
+    regenerate.type = "button";
+    regenerate.textContent = "Regenerar";
+    regenerate.addEventListener("click", () => sendMessage("", true));
+    actions.append(regenerate);
+  }
+  body.append(meta, content);
+  if (message.sources?.length) {
+    const sources = document.createElement("div");
+    sources.className = "message-sources";
+    sources.textContent = `Fuentes: ${message.sources.join(", ")}`;
+    body.append(sources);
+  }
+  body.append(actions);
   article.append(avatar, body);
   return article;
 }
@@ -188,7 +229,10 @@ function renderConversation() {
   const conversation = state.activeConversation;
   elements.title.textContent = conversation?.title || "Nueva conversación";
   if (!conversation?.messages.length) elements.messages.append(elements.empty);
-  else for (const message of conversation.messages) elements.messages.append(messageElement(message));
+  else conversation.messages.forEach((message, index) => {
+    elements.messages.append(messageElement(message, { isLast: index === conversation.messages.length - 1 }));
+  });
+  elements.documentCount.textContent = String(conversation?.documents?.length || 0);
   elements.messages.scrollTop = elements.messages.scrollHeight;
   renderList();
 }
@@ -233,6 +277,82 @@ async function newConversation() {
   elements.input.focus();
 }
 
+async function togglePinned(conversation) {
+  await api(`/api/conversations/${conversation.id}/pin`, {
+    method: "PATCH",
+    body: JSON.stringify({ pinned: !conversation.pinned }),
+  });
+  await refreshList();
+}
+
+function speakMessage(content, button) {
+  if (button.dataset.speaking === "true") {
+    speechSynthesis.cancel();
+    button.dataset.speaking = "false";
+    button.textContent = "Escuchar";
+    return;
+  }
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(content);
+  utterance.lang = "es-CR";
+  button.dataset.speaking = "true";
+  button.textContent = "Detener voz";
+  const reset = () => {
+    button.dataset.speaking = "false";
+    button.textContent = "Escuchar";
+  };
+  utterance.addEventListener("end", reset);
+  utterance.addEventListener("error", reset);
+  speechSynthesis.speak(utterance);
+}
+
+function formatBytes(size) {
+  return size < 1024 ? `${size} B` : `${Math.round(size / 1024)} KB`;
+}
+
+function renderDocuments() {
+  elements.documentList.replaceChildren();
+  const documents = state.activeConversation?.documents || [];
+  if (!documents.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "Aún no hay archivos en esta conversación.";
+    elements.documentList.append(empty);
+    return;
+  }
+  for (const documentInfo of documents) {
+    const row = document.createElement("div");
+    row.className = "document-row";
+    const info = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = documentInfo.name;
+    const size = document.createElement("span");
+    size.textContent = formatBytes(documentInfo.size);
+    info.append(name, size);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Quitar";
+    remove.addEventListener("click", async () => {
+      if (!confirm(`¿Quitar ${documentInfo.name} de esta conversación?`)) return;
+      const payload = await api(`/api/conversations/${state.activeConversation.id}/documents/${documentInfo.id}`, { method: "DELETE" });
+      state.activeConversation = payload.conversation;
+      renderDocuments();
+      renderConversation();
+      await refreshList();
+    });
+    row.append(info, remove);
+    elements.documentList.append(row);
+  }
+}
+
+function downloadJson(filename, payload) {
+  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 async function readStream(response, onEvent) {
   if (!response.ok) {
     const payload = await response.json();
@@ -253,18 +373,24 @@ async function readStream(response, onEvent) {
   if (buffer.trim()) onEvent(JSON.parse(buffer));
 }
 
-async function sendMessage(message) {
-  if (state.sending || !message.trim()) return;
+async function sendMessage(message, regenerate = false) {
+  if (state.sending || (!regenerate && !message.trim())) return;
   if (!state.activeConversation) await newConversation();
 
   const conversationId = state.activeConversation.id;
+  const originalMessages = [...state.activeConversation.messages];
   const optimistic = {
     id: crypto.randomUUID(),
     role: "user",
     content: message.trim(),
     createdAt: new Date().toISOString(),
   };
-  state.activeConversation.messages.push(optimistic);
+  if (regenerate) {
+    if (state.activeConversation.messages.at(-1)?.role !== "assistant") return;
+    state.activeConversation.messages.pop();
+  } else {
+    state.activeConversation.messages.push(optimistic);
+  }
   renderConversation();
   const streamingMessage = {
     id: "streaming",
@@ -286,7 +412,7 @@ async function sendMessage(message) {
       method: "POST",
       headers: { "content-type": "application/json" },
       signal: state.abortController.signal,
-      body: JSON.stringify({ conversationId, message: message.trim() }),
+      body: JSON.stringify({ conversationId, message: message.trim(), regenerate }),
     });
     await readStream(response, (event) => {
       if (event.type === "delta") {
@@ -312,7 +438,9 @@ async function sendMessage(message) {
       await new Promise((resolve) => setTimeout(resolve, 120));
       try { await openConversation(conversationId); } catch { /* Puede seguir vacía. */ }
     } else {
-      state.activeConversation.messages = state.activeConversation.messages.filter((item) => item.id !== optimistic.id);
+      state.activeConversation.messages = regenerate
+        ? originalMessages
+        : state.activeConversation.messages.filter((item) => item.id !== optimistic.id);
       renderConversation();
       showError(error.message);
     }
@@ -420,6 +548,91 @@ elements.themeToggle.addEventListener("click", () => {
   applyTheme(THEMES[(THEMES.indexOf(current) + 1) % THEMES.length]);
 });
 
+elements.knowledgeButton.addEventListener("click", () => {
+  if (!state.activeConversation || state.sending) return;
+  renderDocuments();
+  elements.knowledgeDialog.showModal();
+});
+
+elements.knowledgeClose.addEventListener("click", () => elements.knowledgeDialog.close());
+
+elements.knowledgeForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const files = [...elements.knowledgeInput.files];
+  if (!files.length) return;
+  try {
+    for (const file of files) {
+      if (file.size > 500_000) throw new Error(`${file.name} supera el límite de 500 KB.`);
+      const content = await file.text();
+      const payload = await api(`/api/conversations/${state.activeConversation.id}/documents`, {
+        method: "POST",
+        body: JSON.stringify({ name: file.name, type: file.type, content }),
+      });
+      state.activeConversation = payload.conversation;
+    }
+    elements.knowledgeInput.value = "";
+    renderDocuments();
+    renderConversation();
+    await refreshList();
+  } catch (error) {
+    elements.knowledgeDialog.close();
+    showError(error.message);
+  }
+});
+
+elements.backupExport.addEventListener("click", async () => {
+  const backup = await api("/api/backup");
+  downloadJson(`veltron-ia-${new Date().toISOString().slice(0, 10)}.json`, backup);
+});
+
+elements.backupImportButton.addEventListener("click", () => elements.backupImport.click());
+
+elements.backupImport.addEventListener("change", async () => {
+  const file = elements.backupImport.files[0];
+  if (!file || !confirm("¿Importar este respaldo y combinarlo con tus conversaciones actuales?")) return;
+  try {
+    const backup = JSON.parse(await file.text());
+    await api("/api/backup", { method: "POST", body: JSON.stringify(backup) });
+    await refreshList();
+    if (state.conversations[0]) await openConversation(state.conversations[0].id);
+  } catch (error) {
+    showError(`No se pudo importar el respaldo: ${error.message}`);
+  } finally {
+    elements.backupImport.value = "";
+  }
+});
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SpeechRecognition) {
+  const recognition = new SpeechRecognition();
+  let recognizing = false;
+  recognition.lang = "es-CR";
+  recognition.interimResults = false;
+  recognition.addEventListener("start", () => {
+    recognizing = true;
+    elements.voiceInput.classList.add("listening");
+    elements.voiceInput.textContent = "Escuchando";
+  });
+  recognition.addEventListener("end", () => {
+    recognizing = false;
+    elements.voiceInput.classList.remove("listening");
+    elements.voiceInput.textContent = "Dictar";
+  });
+  recognition.addEventListener("result", (event) => {
+    elements.input.value = event.results[0][0].transcript;
+    elements.input.dispatchEvent(new Event("input"));
+    elements.input.focus();
+  });
+  recognition.addEventListener("error", (event) => showError(`No se pudo usar el micrófono: ${event.error}.`));
+  elements.voiceInput.addEventListener("click", () => {
+    if (recognizing) recognition.stop();
+    else recognition.start();
+  });
+} else {
+  elements.voiceInput.disabled = true;
+  elements.voiceInput.title = "El reconocimiento de voz no está disponible en este navegador.";
+}
+
 document.querySelectorAll(".suggestions button").forEach((button) => {
   button.addEventListener("click", () => {
     elements.input.value = button.textContent;
@@ -446,3 +659,7 @@ async function initialize() {
 }
 
 initialize();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/service-worker.js").catch(() => {}));
+}

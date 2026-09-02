@@ -6,6 +6,8 @@
     <meta name="theme-color" content="#101210" />
     <meta name="description" content="Veltron IA, asistente local con memoria y conexión opcional a modelos generativos." />
     <title>Veltron IA</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <script src="/app.js" type="module"></script>
   </head>
@@ -35,6 +37,11 @@
 
         <div class="sidebar-footer">
           <p>Los chats se guardan solo en este equipo.</p>
+          <div class="data-actions">
+            <button id="backup-export" type="button">Respaldar</button>
+            <button id="backup-import-button" type="button">Importar</button>
+            <input id="backup-import" type="file" accept="application/json,.json" hidden />
+          </div>
         </div>
       </aside>
 
@@ -49,6 +56,7 @@
             <span id="connection-status">Preparando chat</span>
           </div>
           <div class="header-actions">
+            <button id="knowledge-button" type="button">Archivos <span id="document-count">0</span></button>
             <button id="theme-toggle" type="button">Tema</button>
             <button id="export-chat" type="button">Exportar</button>
             <button class="danger-action" id="delete-chat" type="button">Borrar</button>
@@ -71,6 +79,7 @@
         <div class="composer-wrap">
           <form class="composer" id="composer">
             <label for="message-input">Mensaje</label>
+            <button class="voice-button" id="voice-input" type="button" aria-label="Dictar mensaje">Dictar</button>
             <textarea id="message-input" rows="1" maxlength="8000" placeholder="Escribe tu mensaje" required></textarea>
             <button id="send-button" type="submit">Enviar</button>
           </form>
@@ -89,6 +98,19 @@
         <div class="dialog-actions">
           <button id="rename-cancel" type="button">Cancelar</button>
           <button class="dialog-primary" type="submit">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="rename-dialog knowledge-dialog" id="knowledge-dialog">
+      <form id="knowledge-form">
+        <h2>Conocimiento del chat</h2>
+        <p>Agrega archivos de texto para que Veltron IA use su contenido al responder.</p>
+        <label for="knowledge-input">Archivo TXT, Markdown, CSV, JSON o código</label>
+        <input id="knowledge-input" type="file" accept="text/*,.md,.markdown,.csv,.json,.js,.ts,.py,.swift,.html,.css" multiple />
+        <div class="document-list" id="document-list"></div>
+        <div class="dialog-actions">
+          <button id="knowledge-close" type="button">Cerrar</button>
+          <button class="dialog-primary" type="submit">Agregar</button>
         </div>
       </form>
     </dialog>

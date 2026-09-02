@@ -16,6 +16,8 @@ const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
+  ".svg": "image/svg+xml; charset=utf-8",
   ".png": "image/png",
   ".ico": "image/x-icon",
 };
@@ -33,11 +35,23 @@ function ndjson(response, payload) {
   response.write(`${JSON.stringify(payload)}\n`);
 }
 
-async function readJson(request) {
+function serializeConversation(conversation) {
+  if (!conversation) return conversation;
+  return {
+    ...conversation,
+    documents: (conversation.documents || []).map(({ content, ...document }) => document),
+  };
+}
+
+function serializeResult(result) {
+  return { ...result, conversation: serializeConversation(result.conversation) };
+}
+
+async function readJson(request, maxLength = 1_000_000) {
   let body = "";
   for await (const chunk of request) {
     body += chunk;
-    if (body.length > 1_000_000) throw new Error("La solicitud es demasiado grande.");
+    if (body.length > maxLength) throw new Error("La solicitud es demasiado grande.");
   }
   return body ? JSON.parse(body) : {};
 }
@@ -67,6 +81,7 @@ export function createApp({ config = loadConfig(), dataDirectory } = {}) {
       if (request.method === "GET" && url.pathname === "/api/health") {
         return json(response, 200, {
           ok: true,
+          version: "1.2.0",
           mode: config.provider.enabled ? "model" : "offline",
           model: config.provider.enabled ? config.provider.model : null,
         });
@@ -74,6 +89,21 @@ export function createApp({ config = loadConfig(), dataDirectory } = {}) {
 
       if (request.method === "GET" && url.pathname === "/api/conversations") {
         return json(response, 200, { conversations: await conversationStore.list() });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/backup") {
+        return json(response, 200, {
+          format: "veltron-ia-backup",
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          ...(await conversationStore.exportData()),
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/backup") {
+        const body = await readJson(request, 25_000_000);
+        const data = await conversationStore.importData(body);
+        return json(response, 200, { imported: data.conversations.length });
       }
 
       if (request.method === "POST" && url.pathname === "/api/conversations") {
@@ -84,7 +114,7 @@ export function createApp({ config = loadConfig(), dataDirectory } = {}) {
       if (conversationMatch && request.method === "GET") {
         const conversation = await conversationStore.get(conversationMatch[1]);
         return conversation
-          ? json(response, 200, { conversation })
+          ? json(response, 200, { conversation: serializeConversation(conversation) })
           : json(response, 404, { error: "Conversación no encontrada." });
       }
 
@@ -99,7 +129,42 @@ export function createApp({ config = loadConfig(), dataDirectory } = {}) {
         if (!title) return json(response, 400, { error: "El título no puede estar vacío." });
         const conversation = await conversationStore.rename(conversationMatch[1], title);
         return conversation
-          ? json(response, 200, { conversation })
+          ? json(response, 200, { conversation: serializeConversation(conversation) })
+          : json(response, 404, { error: "Conversación no encontrada." });
+      }
+
+      const pinMatch = url.pathname.match(/^\/api\/conversations\/([^/]+)\/pin$/);
+      if (pinMatch && request.method === "PATCH") {
+        const body = await readJson(request);
+        const conversation = await conversationStore.setPinned(pinMatch[1], body.pinned);
+        return conversation
+          ? json(response, 200, { conversation: serializeConversation(conversation) })
+          : json(response, 404, { error: "Conversación no encontrada." });
+      }
+
+      const documentMatch = url.pathname.match(/^\/api\/conversations\/([^/]+)\/documents(?:\/([^/]+))?$/);
+      if (documentMatch && request.method === "POST" && !documentMatch[2]) {
+        const body = await readJson(request);
+        const name = typeof body.name === "string" ? body.name.trim().slice(0, 120) : "";
+        const content = typeof body.content === "string" ? body.content.trim() : "";
+        if (!name || !content || content.length > 500_000) {
+          return json(response, 400, { error: "Archivo inválido o mayor de 500 KB de texto." });
+        }
+        const conversation = await conversationStore.addDocument(documentMatch[1], {
+          name,
+          type: String(body.type || "text/plain").slice(0, 80),
+          content,
+        });
+        return conversation
+          ? json(response, 201, { conversation: serializeConversation(conversation) })
+          : json(response, 404, { error: "Conversación no encontrada." });
+      }
+
+      if (documentMatch && request.method === "DELETE" && documentMatch[2]) {
+        const conversation = await conversationStore.removeDocument(documentMatch[1], documentMatch[2]);
+        if (conversation === false) return json(response, 404, { error: "Archivo no encontrado." });
+        return conversation
+          ? json(response, 200, { conversation: serializeConversation(conversation) })
           : json(response, 404, { error: "Conversación no encontrada." });
       }
 
@@ -109,13 +174,14 @@ export function createApp({ config = loadConfig(), dataDirectory } = {}) {
         if (!content || typeof body.conversationId !== "string") {
           return json(response, 400, { error: "Mensaje o conversación inválidos." });
         }
-        return json(response, 200, await service.respond(body.conversationId, content));
+        return json(response, 200, serializeResult(await service.respond(body.conversationId, content)));
       }
 
       if (request.method === "POST" && url.pathname === "/api/chat/stream") {
         const body = await readJson(request);
         const content = validateMessage(body.message);
-        if (!content || typeof body.conversationId !== "string") {
+        const regenerate = body.regenerate === true;
+        if ((!content && !regenerate) || typeof body.conversationId !== "string") {
           return json(response, 400, { error: "Mensaje o conversación inválidos." });
         }
         const controller = new AbortController();
@@ -132,11 +198,12 @@ export function createApp({ config = loadConfig(), dataDirectory } = {}) {
         try {
           const result = await service.respondStreaming(body.conversationId, content, {
             signal: controller.signal,
+            regenerate,
             onDelta: (delta) => ndjson(response, { type: "delta", delta }),
           });
           ndjson(response, {
             type: "done",
-            conversation: result.conversation,
+            conversation: serializeConversation(result.conversation),
             mode: result.mode,
             warning: result.warning,
           });
