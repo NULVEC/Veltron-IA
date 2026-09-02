@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#101210" />
+    <meta name="theme-color" content="#070b0d" />
     <meta name="description" content="Veltron IA, asistente local con memoria y conexión opcional a modelos generativos." />
     <title>Veltron IA</title>
     <link rel="manifest" href="./manifest.webmanifest" />
@@ -15,18 +15,18 @@
     <div class="app-shell">
       <aside class="sidebar" id="sidebar" aria-label="Conversaciones">
         <div class="brand-row">
-          <div class="brand-mark" aria-hidden="true">V</div>
-          <div>
-            <strong>Veltron IA</strong>
+          <div class="brand-mark" aria-hidden="true"><span>V</span></div>
+          <div class="brand-copy">
+            <strong>VELTRON <em>IA</em></strong>
             <span id="mode-label">Comprobando motor</span>
           </div>
         </div>
 
-        <button class="new-chat" id="new-chat" type="button">Nueva conversación</button>
+        <button class="new-chat" id="new-chat" type="button"><span aria-hidden="true">+</span> Nueva conversación</button>
 
         <div class="search-wrap">
           <label for="conversation-search">Buscar conversaciones</label>
-          <input id="conversation-search" type="search" placeholder="Buscar chats" autocomplete="off" />
+          <input id="conversation-search" type="search" placeholder="Buscar en memoria" autocomplete="off" />
         </div>
 
         <nav class="conversation-list" id="conversation-list" aria-label="Historial">
@@ -36,7 +36,7 @@
         </nav>
 
         <div class="sidebar-footer">
-          <p>Los chats se guardan solo en este equipo.</p>
+          <p>Memoria privada en este dispositivo.</p>
           <div class="data-actions">
             <button id="backup-export" type="button">Respaldar</button>
             <button id="backup-import-button" type="button">Importar</button>
@@ -47,7 +47,7 @@
 
       <main class="chat-panel">
         <header class="chat-header">
-          <button class="mobile-menu" id="mobile-menu" type="button" aria-label="Abrir conversaciones">Historial</button>
+          <button class="mobile-menu" id="mobile-menu" type="button" aria-label="Abrir conversaciones">Menú</button>
           <div class="chat-title-wrap">
             <div class="title-line">
               <h1 id="chat-title">Nueva conversación</h1>
@@ -65,13 +65,14 @@
 
         <section class="messages" id="messages" aria-live="polite" aria-label="Mensajes">
           <div class="empty-state" id="empty-state">
-            <div class="empty-mark" aria-hidden="true">V</div>
-            <h2>¿Qué quieres resolver?</h2>
-            <p>Pregunta, calcula o configura un modelo generativo para conversaciones más avanzadas.</p>
+            <div class="empty-orbit" aria-hidden="true"><div class="empty-mark">V</div></div>
+            <span class="empty-kicker">NÚCLEO VELTRON ACTIVO</span>
+            <h2>¿Qué construimos hoy?</h2>
+            <p>Piensa, calcula y consulta tus archivos desde un espacio privado diseñado para avanzar.</p>
             <div class="suggestions" aria-label="Sugerencias">
-              <button type="button">¿Qué puedes hacer?</button>
-              <button type="button">Me llamo Carlos</button>
-              <button type="button">Calcula (24 + 6) / 3</button>
+              <button type="button" data-prompt="¿Qué puedes hacer?"><span>Explorar</span><strong>¿Qué puedes hacer?</strong></button>
+              <button type="button" data-prompt="Me llamo Carlos"><span>Memoria</span><strong>Recuerda mi nombre</strong></button>
+              <button type="button" data-prompt="Calcula (24 + 6) / 3"><span>Precisión</span><strong>Resolver un cálculo</strong></button>
             </div>
           </div>
         </section>
@@ -79,11 +80,11 @@
         <div class="composer-wrap">
           <form class="composer" id="composer">
             <label for="message-input">Mensaje</label>
-            <button class="voice-button" id="voice-input" type="button" aria-label="Dictar mensaje">Dictar</button>
+            <button class="voice-button" id="voice-input" type="button" aria-label="Dictar mensaje">Voz</button>
             <textarea id="message-input" rows="1" maxlength="8000" placeholder="Escribe tu mensaje" required></textarea>
             <button id="send-button" type="submit">Enviar</button>
           </form>
-          <div class="composer-meta">
+          <div class="composer-meta" aria-hidden="true">
             <p class="composer-note" id="composer-note">Enter para enviar. Shift + Enter para una nueva línea.</p>
             <span id="character-count">0 / 8000</span>
           </div>

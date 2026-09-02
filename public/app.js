@@ -620,7 +620,7 @@ if (SpeechRecognition) {
   recognition.addEventListener("end", () => {
     recognizing = false;
     elements.voiceInput.classList.remove("listening");
-    elements.voiceInput.textContent = "Dictar";
+    elements.voiceInput.textContent = "Voz";
   });
   recognition.addEventListener("result", (event) => {
     elements.input.value = event.results[0][0].transcript;
@@ -639,14 +639,14 @@ if (SpeechRecognition) {
 
 document.querySelectorAll(".suggestions button").forEach((button) => {
   button.addEventListener("click", () => {
-    elements.input.value = button.textContent;
+    elements.input.value = button.dataset.prompt || button.textContent;
     elements.input.dispatchEvent(new Event("input"));
     elements.input.focus();
   });
 });
 
 async function initialize() {
-  applyTheme(localStorage.getItem("veltron-theme") || "system");
+  applyTheme(localStorage.getItem("veltron-theme") || "dark");
   try {
     state.health = await api("/api/health");
     const modelActive = state.health.mode === "model";

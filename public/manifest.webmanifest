@@ -4,8 +4,8 @@
   "description": "Asistente web local con memoria, archivos y voz.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#101210",
-  "theme_color": "#176b45",
+  "background_color": "#070b0d",
+  "theme_color": "#2fd99b",
   "icons": [
     {
       "src": "./icon.svg",

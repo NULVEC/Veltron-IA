@@ -23,6 +23,7 @@ en archivos y la conexión opcional con modelos compatibles con OpenAI.
 - Copia y exportación de respuestas.
 - Tema del sistema, claro u oscuro.
 - Aplicación web instalable (PWA) con caché de la interfaz.
+- Interfaz VELTRON adaptable desde móviles compactos hasta monitores ultrawide.
 - Contador de caracteres y atajo `Ctrl+K` para buscar chats.
 - Caída automática al motor offline cuando un proveedor no responde.
 

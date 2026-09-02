@@ -1,6 +1,6 @@
 {
   "name": "veltron-ia",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Asistente web local con archivos, voz, streaming, memoria y modelos compatibles con OpenAI.",
   "type": "module",
   "bin": {

@@ -142,7 +142,7 @@ export async function staticFetch(path, options = {}) {
   const data = readData();
 
   if (method === "GET" && pathname === "/api/health") {
-    return json({ ok: true, version: "1.2.1", mode: "offline", model: null, deployment: "static" });
+    return json({ ok: true, version: "1.3.0", mode: "offline", model: null, deployment: "static" });
   }
   if (method === "GET" && pathname === "/api/conversations") return json({ conversations: listConversations(data) });
   if (method === "POST" && pathname === "/api/conversations") {
